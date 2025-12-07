@@ -1,0 +1,16 @@
+# Ignore heavy data
+data/
+ml_engine/data/
+*.csv
+*.pkl
+
+# Ignore node_modules (thousands of tiny files)
+node_modules/
+frontend/node_modules/
+.next/
+frontend/.next/
+
+# Ignore python cache
+__pycache__/
+*.pyc
+.env

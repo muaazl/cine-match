@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+pydantic
+pinecone-client
+sentence-transformers
+torch
+numpy
