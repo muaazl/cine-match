@@ -11,7 +11,6 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 
 const containerVariants = {
   initial: {},
-  animate: { transition: { staggerChildren: 0.05 } },
 };
 
 const letterVariants = {
