@@ -174,7 +174,7 @@ function WizardMode({ onSelect }: { onSelect: (m: any) => void }) {
                 {step === 'genre' && (
                     <motion.div key="genre" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="text-center">
                          <Button variant="ghost" className="mb-8" onClick={() => setStep("intro")}><ArrowLeft size={14}/> Back</Button>
-                         <h2 className="text-4xl font-bold mb-8">What are we watching, {name}?</h2>
+                         <h2 className="text-4xl font-bold mb-8">What are we watching?</h2>
                          <div className="flex flex-wrap justify-center gap-4 max-w-4xl mx-auto">
                             {GENRES.map(g => (
                                 <button key={g} onClick={() => handleGenreSelect(g)} className="px-8 py-6 rounded-xl border border-zinc-200 bg-white hover:border-black hover:shadow-lg transition-all text-xl font-bold">
