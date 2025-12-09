@@ -3,12 +3,10 @@ from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from pinecone import Pinecone
 from sentence_transformers import SentenceTransformer
+from thefuzz import process, fuzz
 import random
 import os
 
-# ============================
-# 🔑 CONFIGURATION
-# ============================
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
 INDEX_NAME = "cine-match"
 
@@ -43,10 +41,6 @@ pc = Pinecone(api_key=PINECONE_API_KEY)
 index = pc.Index(INDEX_NAME)
 print("✅ Brain Online!")
 
-# ============================
-# 🛠 MODELS
-# ============================
-
 class SearchRequest(BaseModel):
     query: str
     filter_type: str = "All"
@@ -59,10 +53,6 @@ class FinalRecommendationRequest(BaseModel):
     selected_titles: list[str]
     genre: str
 
-# ============================
-# 🔍 MODE 1: SIMPLE SEARCH
-# ============================
-
 @app.post("/search")
 def semantic_search(req: SearchRequest):
     try:
@@ -73,86 +63,78 @@ def semantic_search(req: SearchRequest):
 
         results = index.query(
             vector=query_vector,
-            top_k=20,
+            top_k=80, 
             include_metadata=True,
             filter=filter_dict if filter_dict else None
         )
         
-        matches = []
+        candidates = []
         for match in results['matches']:
             meta = match['metadata']
-            matches.append({
+            candidates.append({
                 "id": meta['original_id'],
                 "title": meta['title'],
                 "type": meta['type'],
                 "score": match['score'],
                 "rating": meta.get('rating', 0)
             })
-        return {"results": matches}
+        
+        final_results = []
+        for item in candidates:
+            fuzzy_score = fuzz.ratio(req.query.lower(), item['title'].lower())
+
+            if fuzzy_score > 85:
+                item['score'] += 2.0 
+            
+            elif fuzz.partial_ratio(req.query.lower(), item['title'].lower()) > 90:
+                item['score'] += 0.5
+
+            final_results.append(item)
+
+        final_results.sort(key=lambda x: x['score'], reverse=True)
+
+        return {"results": final_results[:20]}
+        
     except Exception as e:
+        print(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/mood")
 def mood_search(mood: str):
-    # Simple mapping for the "Search Mode" mood buttons
     mood_map = {
         "Happy": "Feel good movie, comedy, lighthearted, happy ending",
         "Dark": "Dark, psychological thriller, disturbing, gritty, noir",
-        "Adrenaline": "High stakes action, fast paced, car chases",
+        "Adrenaline": "High stakes action, fast paced, car chases, explosions",
         "Mind-Bending": "Confusing plot, time travel, philosophy, deep thoughts",
-        "Romantic": "Love story, romance, heartbreak",
-        "Scary": "Horror, ghosts, jump scares"
+        "Romantic": "Love story, romance, heartbreak, relationship",
+        "Scary": "Horror, ghosts, jump scares, terrifying"
     }
     search_query = mood_map.get(mood, mood)
     return semantic_search(SearchRequest(query=search_query))
-
-# ============================
-# 🧙‍♂️ MODE 2: WIZARD / HYBRID
-# ============================
 
 @app.post("/get-quiz-items")
 def get_quiz_items(req: QuizRequest):
     query = f"Popular, famous, high rated {req.genre} movies or anime"
     vector = model.encode(query).tolist()
-    
     results = index.query(
-        vector=vector,
-        top_k=20,
-        include_metadata=True,
+        vector=vector, top_k=20, include_metadata=True,
         filter={"type": "Anime" if req.genre == "Anime" else "Movie"}
     )
-    
-    items = []
-    for match in results['matches']:
-        meta = match['metadata']
-        items.append({
-            "id": meta['original_id'],
-            "title": meta['title'],
-            "type": meta['type'],
-            "poster": None
-        })
+    items = [{"id": m['metadata']['original_id'], "title": m['metadata']['title'], "type": m['metadata']['type'], "poster": None} for m in results['matches']]
     return {"items": items}
 
 @app.post("/hybrid-recommend")
 def hybrid_recommend(req: FinalRecommendationRequest):
     joined_titles = ", ".join(req.selected_titles)
     semantic_query = f"{req.mood} {req.genre} similar to {joined_titles}"
-    
     query_vector = model.encode(semantic_query).tolist()
-    
-    results = index.query(
-        vector=query_vector,
-        top_k=60, 
-        include_metadata=True
-    )
+    results = index.query(vector=query_vector, top_k=60, include_metadata=True)
     
     recommendations = []
     for match in results['matches']:
         meta = match['metadata']
         if meta['title'] in req.selected_titles: continue
-            
         reason = f"Because you liked {random.choice(req.selected_titles)} and wanted something {req.mood}."
-        
         recommendations.append({
             "id": meta['original_id'],
             "title": meta['title'],
@@ -161,35 +143,16 @@ def hybrid_recommend(req: FinalRecommendationRequest):
             "rating": meta.get('rating', 0),
             "reason": reason 
         })
-        
     return {"results": recommendations}
 
 @app.get("/lucky")
 def lucky_pick():
-    """
-    Picks a random high-rated movie from the database.
-    """
-    # Query for generally good movies
     vector = model.encode("Masterpiece, highly rated, famous, classic, 5 stars").tolist()
-    
-    # Get 50 candidates
-    results = index.query(
-        vector=vector,
-        top_k=50, 
-        include_metadata=True
-    )
-    
-    if not results['matches']:
-        raise HTTPException(status_code=404, detail="No movies found")
-        
-    # Pick one random movie
+    results = index.query(vector=vector, top_k=50, include_metadata=True)
+    if not results['matches']: raise HTTPException(status_code=404, detail="No movies found")
     match = random.choice(results['matches'])
     meta = match['metadata']
-    
     return {
-        "id": meta['original_id'],
-        "title": meta['title'],
-        "type": meta['type'],
-        "rating": meta.get('rating', 0),
-        "reason": "Serendipity ✨"
+        "id": meta['original_id'], "title": meta['title'], "type": meta['type'],
+        "rating": meta.get('rating', 0), "reason": "Serendipity ✨"
     }

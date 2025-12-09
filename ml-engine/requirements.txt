@@ -5,3 +5,5 @@ pinecone
 sentence-transformers
 torch
 numpy
+thefuzz
+python-levenshtein
