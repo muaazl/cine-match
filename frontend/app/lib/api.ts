@@ -1,5 +1,5 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-const TMDB_KEY = process.env.TMDB_KEY;
+const TMDB_KEY = process.env.NEXT_PUBLIC_TMDB_KEY;
 
 export const api = {
   search: async (query: string, type: string = "All") => {

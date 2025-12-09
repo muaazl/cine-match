@@ -1,7 +1,9 @@
 fastapi
 uvicorn
 pydantic
-pinecone-client
+pinecone
 sentence-transformers
 torch
 numpy
+thefuzz
+python-levenshtein
