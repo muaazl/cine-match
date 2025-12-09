@@ -1,4 +1,4 @@
-const TMDB_API_KEY = "e3553ae9c663d81cb23cea986235cd4d"; 
+const TMDB_KEY = process.env.NEXT_PUBLIC_TMDB_KEY;
 
 export const getPosterUrl = async (id: number, type: string, title: string) => {
   try {
@@ -8,12 +8,12 @@ export const getPosterUrl = async (id: number, type: string, title: string) => {
       return data.data?.images?.jpg?.large_image_url || null;
     } else {
       const res = await fetch(
-        `https://api.themoviedb.org/3/movie/${id}?api_key=${TMDB_API_KEY}`
+        `https://api.themoviedb.org/3/movie/${id}?api_key=${TMDB_KEY}`
       );
       
       if (!res.ok) {
         const search = await fetch(
-            `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(title)}`
+            `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}`
         );
         const searchData = await search.json();
         if(searchData.results?.[0]?.poster_path) {
